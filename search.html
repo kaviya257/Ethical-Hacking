@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Search Receiver (GitHub Pages examples)</title>
+  <style>
+    body{font-family:system-ui,Arial;margin:2rem;background:#f7fbff;color:#111}
+    .card{background:white;border-radius:10px;padding:1rem;margin-bottom:1rem;box-shadow:0 6px 18px rgba(20,40,60,.08)}
+    label{display:block;margin-bottom:.25rem;font-weight:600}
+    input[type=text]{width:100%;padding:.5rem;border:1px solid #ddd;border-radius:6px}
+    button{margin-top:.5rem;padding:.5rem .8rem;border-radius:6px;border:0;background:#2563eb;color:white;cursor:pointer}
+    pre{background:#0b1220;color:#d1e3ff;padding:1rem;border-radius:8px;overflow:auto}
+    .muted{color:#6b7280;font-size:.95rem}
+  </style>
+</head>
+<body>
+  <h1>Search box → receive user input (GitHub Pages)</h1>
+  <p class="muted">Pick a method below. Put this file as <code>index.html</code> in a GitHub repo and enable GitHub Pages.</p>
+
+  <section class="card">
+    <h2>Method A — Formspree (email/webhook)</h2>
+    <p class="muted">Best simple way to receive submissions via email or Formspree webhook. No backend required.</p>
+    <label for="qA">Search / message</label>
+    <input id="qA" type="text" placeholder="Type something to send to Formspree" />
+    <button id="sendA">Send to Formspree</button>
+    <div id="statusA" class="muted"></div>
+  </section>
+
+  <section class="card">
+    <h2>Method B — Webhook.site (for testing)</h2>
+    <p class="muted">Great to test payloads. Replace the WEBHOOK_ENDPOINT in the code with your webhook.site URL.</p>
+    <label for="qB">Search / message</label>
+    <input id="qB" type="text" placeholder="Type something to send to webhook.site" />
+    <button id="sendB">Send to webhook.site</button>
+    <div id="statusB" class="muted"></div>
+  </section>
+
+  <section class="card">
+    <h2>Method C — Embed Google Form (record to Google Sheets)</h2>
+    <p class="muted">Embed a Google Form in an iframe so submissions are recorded to the form's response spreadsheet.</p>
+    <!-- Replace the src below with your own Google Form embed src (iframe) -->
+    <div style="min-height:200px;">
+      <iframe id="googleForm" src="https://docs.google.com/forms/d/e/1FAIpQLSdDUMMYFORM/viewform?embedded=true" width="100%" height="480" frameborder="0">Loading…</iframe>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Quick demo: direct fetch to a test endpoint (optional)</h2>
+    <p class="muted">This sends JSON using fetch — you can point it to any receiving endpoint that accepts application/json.</p>
+    <label for="qC">Search / message</label>
+    <input id="qC" type="text" placeholder="Type something to send as JSON" />
+    <button id="sendC">Send JSON (test)</button>
+    <div id="statusC" class="muted"></div>
+  </section>
+
+  <hr />
+  <p class="muted">Notes: Replace the placeholder endpoints in the HTML's script with your real endpoints. See the top comments for quick setup.</p>
+
+  <script>
+    // ===== CONFIGURE THESE =====
+    // For Formspree: create a form on https://formspree.io and copy the endpoint URL here
+    const FORM_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID'; // <-- replace with your Formspree endpoint
+
+    // For webhook.site testing: replace with your webhook URL from webhook.site
+    const WEBHOOK_ENDPOINT = 'https://webhook.site/your-unique-id'; // <-- replace with your webhook.site URL
+
+    // For quick JSON test, you can also point to webhook.site
+    const JSON_ENDPOINT = WEBHOOK_ENDPOINT;
+    // ===========================
+
+    // Helper to show status
+    function setStatus(el, msg, ok=true) {
+      el.textContent = msg;
+      el.style.color = ok ? 'green' : 'crimson';
+    }
+
+    // Method A: submit text to Formspree using fetch
+    document.getElementById('sendA').addEventListener('click', async () => {
+      const q = document.getElementById('qA').value.trim();
+      const statusEl = document.getElementById('statusA');
+      if (!q) { setStatus(statusEl, 'Enter something first', false); return; }
+
+      try {
+        // Formspree expects form-encoded or multipart. We'll send FormData.
+        const formData = new FormData();
+        formData.append('message', q);
+        formData.append('source', 'github-pages-formspree');
+
+        const res = await fetch(FORM_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json'
+          },
+          body: formData
+        });
+
+        if (res.ok) {
+          setStatus(statusEl, 'Sent! Check your Formspree inbox or webhook.');
+        } else {
+          const text = await res.text();
+          setStatus(statusEl, 'Failed to send — ' + res.status + ' ' + res.statusText + ' — ' + text, false);
+        }
+      } catch (err) {
+        setStatus(statusEl, 'Error: ' + err.message, false);
+      }
+    });
+
+    // Method B: a simple JSON POST to webhook.site or any webhook
+    document.getElementById('sendB').addEventListener('click', async () => {
+      const q = document.getElementById('qB').value.trim();
+      const statusEl = document.getElementById('statusB');
+      if (!q) { setStatus(statusEl, 'Enter something first', false); return; }
+
+      try {
+        const res = await fetch(WEBHOOK_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: q, when: new Date().toISOString(), source: 'github-pages-webhook' })
+        });
+        if (res.ok || res.status === 0) { // some testing endpoints return status 0 in browsers
+          setStatus(statusEl, 'Sent to webhook. Visit webhook.site to view.');
+        } else {
+          setStatus(statusEl, 'Failed to send — ' + res.status + ' ' + res.statusText, false);
+        }
+      } catch (err) {
+        setStatus(statusEl, 'Error: ' + err.message, false);
+      }
+    });
+
+    // Method C: the Google Form is embedded — users will submit via the form UI.
+
+    // Quick JSON test button
+    document.getElementById('sendC').addEventListener('click', async () => {
+      const q = document.getElementById('qC').value.trim();
+      const statusEl = document.getElementById('statusC');
+      if (!q) { setStatus(statusEl, 'Enter something first', false); return; }
+      try {
+        const res = await fetch(JSON_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q })
+        });
+        setStatus(statusEl, 'JSON sent.');
+      } catch (err) {
+        setStatus(statusEl, 'Error: ' + err.message, false);
+      }
+    });
+
+    // Helpful tip: you can read query parameters to pre-fill inputs if you want a "search page" that accepts q=... in the URL.
+    (function prefillFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('q');
+      if (q) {
+        document.getElementById('qA').value = q;
+        document.getElementById('qB').value = q;
+        document.getElementById('qC').value = q;
+      }
+    })();
+  </script>
+</body>
+</html>
